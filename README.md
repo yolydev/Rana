@@ -1,7 +1,4 @@
 # Rana
-
-Daily JS Music Bot
-
 Packages Used:
 
     discord.js
