@@ -1,0 +1,19 @@
+{
+  "name": "discordjs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^11.5.1",
+    "discord.js-commando": "^0.10.0",
+    "ffmpeg-binaries": "^4.0.0",
+    "opusscript": "0.0.7",
+    "simple-youtube-api": "^5.2.1",
+    "ytdl-core": "^0.29.5"
+  }
+}
