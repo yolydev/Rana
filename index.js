@@ -1,24 +1,56 @@
 const { Client, Util } = require('discord.js');
-const { TOKEN, PREFIX } = require('./config');
-const ytdl = require('ytdl-core');
+const discord = require('discord.js');
+const TeemoJS  = require('teemojs');
+const { DISCORD_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config');
 
+const ytdl = require('ytdl-core');
 const client = new Client({ disableEveryone: true });
 
 const queue = new Map();
 
+let api = TeemoJS(LEAGUE_TOKEN);
+
 client.on('warn', console.warn);
 client.on('error', console.error);
-client.on('ready', () => console.log('RANA » Ready to start playing some music!'));
+client.on('ready', () =>  {
+    console.log('RANA » Ready to start playing some music!')
+    client.user.setActivity('Hoi');
+});
 client.on('disconnect', () => console.log('RANA » I just disconnected!'));
 client.on('reconnecting', () => console.log('RANA » Trying to reconnect right now!'));
-
 client.on('message', async msg => {
     if(msg.author.bot) return undefined;
     if(!msg.content.startsWith(PREFIX)) return undefined;
     const args = msg.content.split(' ');
     const serverQueue = queue.get(msg.guild.id);
 
-    if(msg.content.startsWith(`${PREFIX}play`)) {
+    if(msg.content.startsWith(`${PREFIX}elo`)) {
+        const remainder = msg.content.substr('!elo '.length);
+
+        var profileIconId, name, id, summonerLevel, tier, rank
+
+        api.get('euw1', 'summoner.getBySummonerName', remainder)
+        .then(data =>  {
+            profileIconId = data.profileIconId
+            name = data.name
+            id = data.id
+            summonerLevel = data.summonerLevel
+
+            api.get('euw1', 'league.getLeagueEntriesForSummoner', id)
+            .then(data => {
+                let entry = data.find(e => e.queueType == 'RANKED_SOLO_5x5')
+                tier = entry.tier
+                rank = entry.rank
+                console.log(name + ' ' + id + '' + summonerLevel + ' ' + tier + ' ' + rank)
+
+                var embed = new discord.RichEmbed()
+                    .setDescription(name + '\'s profile')
+                    .setColor(0xED3D7D)
+                    .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.15.1/img/profileicon/${profileIconId}.png`)
+                msg.channel.send(embed);
+            })
+        })
+    } else if(msg.content.startsWith(`${PREFIX}play`)) {
         console.log(`RANA » ${msg.author.username} just executed the play command.`);
         const voiceChannel = msg.member.voiceChannel;
         if(!voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
@@ -134,7 +166,7 @@ function play(guild, song) {
 
     const dispatcher = serverQueue.connection.playStream(ytdl(song.url))
             .on('end', () => {
-                console.log('RANA » A Song just ended.');
+                console.log('RANA » A Song just ended. Left voice channel.');
                 serverQueue.songs.shift();
                 play(guild, serverQueue.songs[0]);
             })
@@ -144,4 +176,4 @@ function play(guild, song) {
     serverQueue.textChannel.send(`**RANA** » I just started playing: **${song.title}**`);
 }
 
-client.login(TOKEN);
+client.login(DISCORD_TOKEN);
