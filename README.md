@@ -8,3 +8,5 @@ Commands:
     !queue
     !np
     !vol <number 1-10>
+    
+    !elo <summonername>
