@@ -1,9 +1,4 @@
 # Rana
-Packages Used:
-
-    discord.js
-    ytdl-core
-
 Commands:
 
     !play <youtube link>
