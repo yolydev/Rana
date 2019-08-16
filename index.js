@@ -1,55 +1,71 @@
-const { Client, Util } = require('discord.js');
-const discord = require('discord.js');
-const TeemoJS  = require('teemojs');
-const { DISCORD_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config');
+const { Client, Util } = require('discord.js')
+const discord = require('discord.js')
+const TeemoJS  = require('teemojs')
+const { DISCORD_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config')
 
-const ytdl = require('ytdl-core');
-const client = new Client({ disableEveryone: true });
+const ytdl = require('ytdl-core')
+const client = new Client({ disableEveryone: true })
 
-const queue = new Map();
+const queue = new Map()
+let api = TeemoJS(LEAGUE_TOKEN)
 
-let api = TeemoJS(LEAGUE_TOKEN);
+var status_active = false
 
-client.on('warn', console.warn);
-client.on('error', console.error);
+client.on('warn', console.warn)
+client.on('error', console.error)
 client.on('ready', () =>  {
     console.log('RANA » Ready to start playing some music!')
-    client.user.setActivity('Hoi');
-});
-client.on('disconnect', () => console.log('RANA » I just disconnected!'));
-client.on('reconnecting', () => console.log('RANA » Trying to reconnect right now!'));
+    if(!status_active) {
+        setInterval(function() {
+            let statuses = ['twitch.tv/ehasywhin', 'quitw.ovh', 'github.com/yolydev']
+            let status = statuses[Math.floor(Math.random() * statuses.length)]
+            client.user.setPresence({ game: { name: status }, status: 'online'})
+            client.user.setPresence({ activity: { name: status, /*type: 'PLAYING'(STREAMING;LISTENING;WATCHING) */ }, status: 'online'})
+        }, 10000)
+    }
+})
+client.on('disconnect', () => console.log('RANA » I just disconnected!'))
+client.on('reconnecting', () => console.log('RANA » Trying to reconnect right now!'))
 client.on('message', async msg => {
-    if(msg.author.bot) return undefined;
+    if(msg.author.bot) return undefined
     if(!msg.content.startsWith(PREFIX)) return undefined;
-    const args = msg.content.split(' ');
-    const serverQueue = queue.get(msg.guild.id);
+    const args = msg.content.split(' ')
+    const serverQueue = queue.get(msg.guild.id)
 
     if(msg.content.startsWith(`${PREFIX}elo`)) {
-        const remainder = msg.content.substr('!elo '.length);
+        try {
+            const remainder = msg.content.substr('!elo '.length)
 
-        var profileIconId, name, id, summonerLevel, tier, rank
+            var profileIconId, name, id, summonerLevel, tier, rank
+            api.get('euw1', 'summoner.getBySummonerName', remainder)
+            .then(data =>  {
+                profileIconId = data.profileIconId
+                name = data.name
+                id = data.id
+                summonerLevel = data.summonerLevel
 
-        api.get('euw1', 'summoner.getBySummonerName', remainder)
-        .then(data =>  {
-            profileIconId = data.profileIconId
-            name = data.name
-            id = data.id
-            summonerLevel = data.summonerLevel
+                api.get('euw1', 'league.getLeagueEntriesForSummoner', id)
+                .then(data => {
+                    let entry = data.find(e => e.queueType == 'RANKED_SOLO_5x5')
+                    tier = entry.tier
+                    rank = entry.rank
+                    console.log(name + ' ' + id + '' + summonerLevel + ' ' + tier + ' ' + rank)
 
-            api.get('euw1', 'league.getLeagueEntriesForSummoner', id)
-            .then(data => {
-                let entry = data.find(e => e.queueType == 'RANKED_SOLO_5x5')
-                tier = entry.tier
-                rank = entry.rank
-                console.log(name + ' ' + id + '' + summonerLevel + ' ' + tier + ' ' + rank)
-
-                var embed = new discord.RichEmbed()
-                    .setDescription(name + '\'s profile')
-                    .setColor(0xED3D7D)
-                    .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.15.1/img/profileicon/${profileIconId}.png`)
-                msg.channel.send(embed);
+                    var embed = new discord.RichEmbed()
+                        .setColor(0xED3D7D)
+                        .setTitle(name + '\'s op.gg')
+                        .setURL(`https://euw.op.gg/summoner/userName=${name.replace(' ', '+')}`)
+                        .setAuthor(name + '\'s summoner profile')
+                        .setDescription('League of Legends')
+                        .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.15.1/img/profileicon/${profileIconId}.png`)
+                        .addField('Account Info', `Name: ${name}\nLevel: ${summonerLevel}`, true)
+                        .addField('Ranked Solo/Duo', `Tier: ${convertTier(tier)} ${convertRank(rank)}`, true)
+                    msg.channel.send(embed)
+                })
             })
-        })
+        } catch(error) {
+            console.error(error)
+        }
     } else if(msg.content.startsWith(`${PREFIX}play`)) {
         console.log(`RANA » ${msg.author.username} just executed the play command.`);
         const voiceChannel = msg.member.voiceChannel;
@@ -131,7 +147,7 @@ ${serverQueue.songs.map(song => `${song.title}`).join('\n')}
 
 ${serverQueue.songs[0].title}
         `);
-    }  else if(msg.content.startsWith(`${PREFIX}pause`)) {
+    } else if(msg.content.startsWith(`${PREFIX}pause`)) {
         console.log(`RANA » ${msg.author.username} just executed the pause command.`);
         if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
         if(serverQueue && serverQueue.playing) {
@@ -140,7 +156,7 @@ ${serverQueue.songs[0].title}
             return msg.channel.send('**RANA** » I just paused the current song for you.')
         }
         return msg.channel.send('**RANA** » There is no song playing right now.');
-    }  else if(msg.content.startsWith(`${PREFIX}resume`)) {
+    } else if(msg.content.startsWith(`${PREFIX}resume`)) {
         console.log(`RANA » ${msg.author.username} just executed the resume command.`);
         if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
         if(serverQueue && !serverQueue.playing) {
@@ -149,8 +165,20 @@ ${serverQueue.songs[0].title}
             return msg.channel.send('**RANA** » I just resumed the current song for you.')
         }
         return msg.channel.send('**RANA** » There is no song playing right now.');
-    }
-
+    } /*else if(msg.content.startsWith(`${PREFIX}setstream`)) {   
+        const remainder = msg.content.substr('!setstream '.length);
+        
+        if(remainder === 'lec') {
+            client.user.setPresence({ game: { name: ' - Watching LEC Live!', type: "Streaming", url: "https://www.twitch.tv/riotgames"}});
+            status_active = true;
+        } else if(remainder === 'lcs') {
+            client.user.setPresence({ game: { name: ' - Watching LCS Live!', type: "Streaming", url: "https://www.twitch.tv/riotgames"}});
+            status_active = true;
+        } else if(remainder === 'reset') {
+            status_active = false;
+        }
+        
+    }*/
     return undefined;
 });
 
@@ -174,6 +202,30 @@ function play(guild, song) {
     dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
 
     serverQueue.textChannel.send(`**RANA** » I just started playing: **${song.title}**`);
+}
+
+function convertTier(tier) {
+    const t = tier;
+    switch(tier) {
+        case 'IRON': return t.replace('IRON', 'Iron')
+        case 'SILVER': return t.replace('SILVER', 'Silver')
+        case 'GOLD': return t.replace('GOLD', 'Gold')
+        case 'PLATINUM': return t.replace('PLATINUM', 'Platinum')
+        case 'DIAMOND': return t.replace('DIAMOND', 'Diamond')
+        case 'MASTER': return t.replace('MASTER', 'Master')
+        case 'GRANDMASTER': return t.replace('GRANDMASTER', 'Grandmaster')
+        case 'CHALLENGER': return t.replace('CHALLENGER', 'Challenger')
+    }
+}
+
+function convertRank(rank) {
+    const r = rank
+    switch(rank) {
+        case 'I': return r.replace('I', '1')
+        case 'II': return r.replace('II', '2')
+        case 'III': return r.replace('III', '3')
+        case 'IV': return r.replace('IV', '4')
+    }
 }
 
 client.login(DISCORD_TOKEN);
