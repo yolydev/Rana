@@ -2,8 +2,8 @@ const { Client, Util } = require('discord.js')
 const discord = require('discord.js')
 const TeemoJS  = require('teemojs')
 const { DISCORD_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config')
-
 const ytdl = require('ytdl-core')
+
 const client = new Client({ disableEveryone: true })
 
 const queue = new Map()
@@ -36,7 +36,7 @@ client.on('message', async msg => {
         try {
             const remainder = msg.content.substr('!elo '.length)
 
-            var profileIconId, name, id, summonerLevel, tier, rank
+            var profileIconId, name, id, summonerLevel, tier, rank, lp
             api.get('euw1', 'summoner.getBySummonerName', remainder)
             .then(data =>  {
                 profileIconId = data.profileIconId
@@ -49,6 +49,10 @@ client.on('message', async msg => {
                     let entry = data.find(e => e.queueType == 'RANKED_SOLO_5x5')
                     tier = entry.tier
                     rank = entry.rank
+                    lp = entry.leaguePoints
+                    wins = entry.wins
+                    losses = entry.losses
+
                     console.log(name + ' ' + id + '' + summonerLevel + ' ' + tier + ' ' + rank)
 
                     var embed = new discord.RichEmbed()
@@ -57,9 +61,9 @@ client.on('message', async msg => {
                         .setURL(`https://euw.op.gg/summoner/userName=${name.replace(' ', '+')}`)
                         .setAuthor(name + '\'s summoner profile')
                         .setDescription('League of Legends')
-                        .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.15.1/img/profileicon/${profileIconId}.png`)
+                        .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.16.1/img/profileicon/${profileIconId}.png`)
                         .addField('Account Info', `Name: ${name}\nLevel: ${summonerLevel}`, true)
-                        .addField('Ranked Solo/Duo', `Tier: ${convertTier(tier)} ${convertRank(rank)}`, true)
+                        .addField('Ranked Solo/Duo', `Tier: ${convertTier(tier)} ${convertRank(rank)} mit ${lp}LP\n ${wins}W/${losses}L`, true)
                     msg.channel.send(embed)
                 })
             })
