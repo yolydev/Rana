@@ -1,10 +1,13 @@
 const { Client, Util } = require('discord.js')
 const discord = require('discord.js')
 const TeemoJS  = require('teemojs')
-const { DISCORD_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config')
+const { DISCORD_TOKEN, YOUTUBE_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config')
+const YouTube = require('simple-youtube-api')
 const ytdl = require('ytdl-core')
 
 const client = new Client({ disableEveryone: true })
+
+const youtube = new YouTube(YOUTUBE_TOKEN)
 
 const queue = new Map()
 let api = TeemoJS(LEAGUE_TOKEN) 
@@ -28,8 +31,10 @@ client.on('disconnect', () => console.log('RANA » I just disconnected!'))
 client.on('reconnecting', () => console.log('RANA » Trying to reconnect right now!'))
 client.on('message', async msg => {
     if(msg.author.bot) return undefined
-    if(!msg.content.startsWith(PREFIX)) return undefined;
+    if(!msg.content.startsWith(PREFIX)) return undefined
     const args = msg.content.split(' ')
+    const searchString = args.slice(1).join(' ')
+    const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : ''
     const serverQueue = queue.get(msg.guild.id)
 
     if(msg.content.startsWith(`${PREFIX}elo`)) {
@@ -71,61 +76,48 @@ client.on('message', async msg => {
             console.error(error)
         }
     } else if(msg.content.startsWith(`${PREFIX}play`)) {
-        console.log(`RANA » ${msg.author.username} just executed the play command.`);
-        const voiceChannel = msg.member.voiceChannel;
-        if(!voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
-        const permissions = voiceChannel.permissionsFor(msg.client.user);
+        console.log(`RANA » ${msg.author.username} just executed the play command.`)
+        const voiceChannel = msg.member.voiceChannel
+        if(!voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.')
+        const permissions = voiceChannel.permissionsFor(msg.client.user)
         if(!permissions.has('CONNECT')) {
             return msg.channel.send('**RANA** » I cannot connect to your voice channel.')
         }
         if(!permissions.has('SPEAK')) {
-            return msg.channel.send('**RANA** » I cannot speak in this voice channel.');
+            return msg.channel.send('**RANA** » I cannot speak in this voice channel.')
         }
 
-        const songInfo = await ytdl.getInfo(args[1]);
-        const song = {
-            title: Util.escapeMarkdown(songInfo.title),
-            url: songInfo.video_url
-        }
-        if(!serverQueue) {
-            const queueConstruct = {
-                textChannel: msg.channel,
-                voiceChannel: voiceChannel,
-                connection: null,
-                songs: [],
-                volume: 5,
-                playing: true
-            };
-            queue.set(msg.guild.id, queueConstruct);
-
-            queueConstruct.songs.push(song);
-
-            try {
-                var connection = await voiceChannel.join();
-                queueConstruct.connection = connection;
-                play(msg.guild, queueConstruct.songs[0]);
-            } catch (error) {
-                console.error(`**RANA** » I could not join the voice channel: \n${error}.`);
-                queue.delete(msg.guild.id);
-                return msg.channel.send(`**RANA** » I could not join the voice channel: \n${error}.`);
+        if(url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
+            const playlist = await youtube.getPlaylist(url)
+            const videos = await playlist.getVideos()
+            for(const video of Object.values(videos)) {
+                const video2 = await youtube.getVideoByID(video.id)
+                await handleVideo(video2, msg, voiceChannel, true)
             }
+            return msg.channel.send(`**RANA** » I just added the playlist **${playlist.title}** to the queue.`)
         } else {
-            serverQueue.songs.push(song);
-            console.log(serverQueue.songs);
-            return msg.channel.send(`**RANA** » I just added **${song.title}** to the queue.`);
+            try {
+                var video = await youtube.getVideo(url)
+            } catch (error) {
+                try {
+                    var videos = await youtube.searchVideos(searchString, 1)
+                    var video = await youtube.getVideoByID(videos[0].id)
+                } catch (err) {
+                    console.error(err);
+                    return msg.channel.send('**RANA** » Could not find anything.')
+                }
+            }
+
+            return handleVideo(video, msg, voiceChannel)
         }
-        
-        return undefined;
     } else if(msg.content.startsWith(`${PREFIX}skip`)) {
-        console.log(`RANA » ${msg.author.username} just executed the skip command.`);
         if(!serverQueue) return msg.channel.send('**RANA** » There are no songs in the queue that I could skip.');
-        serverQueue.connection.dispatcher.end();
+        serverQueue.connection.dispatcher.end(`RANA » ${msg.author.username} just executed the skip command.`);
         return undefined;
     } else if(msg.content.startsWith(`${PREFIX}leave`)) {
-        console.log(`RANA » ${msg.author.username} just executed the leave command.`);
         if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
         serverQueue.songs = [];
-        serverQueue.connection.dispatcher.end();
+        serverQueue.connection.dispatcher.end(`RANA » ${msg.author.username} just executed the leave command.`);
         return undefined;
     } else if(msg.content.startsWith(`${PREFIX}vol`)) {
         console.log(`RANA » ${msg.author.username} just executed the vol command.`);
@@ -147,9 +139,7 @@ client.on('message', async msg => {
 
 ${serverQueue.songs.map(song => `${song.title}`).join('\n')} 
 
-**Now Playing: **
-
-${serverQueue.songs[0].title}
+**Now Playing:** ${serverQueue.songs[0].title}
         `);
     } else if(msg.content.startsWith(`${PREFIX}pause`)) {
         console.log(`RANA » ${msg.author.username} just executed the pause command.`);
@@ -186,6 +176,45 @@ ${serverQueue.songs[0].title}
     return undefined;
 });
 
+async function handleVideo(video, msg, voiceChannel, playlist=false) {
+    const serverQueue = queue.get(msg.guild.id)
+    console.log(video)
+        const song = {
+            id: video.id,
+            title: video.title,
+            url: `https://www.youtube.com/watch?v=${video.id}`
+        }
+        if(!serverQueue) {
+            const queueConstruct = {
+                textChannel: msg.channel,
+                voiceChannel: voiceChannel,
+                connection: null,
+                songs: [],
+                volume: 5,
+                playing: true
+            };
+            queue.set(msg.guild.id, queueConstruct);
+
+            queueConstruct.songs.push(song);
+
+            try {
+                var connection = await voiceChannel.join();
+                queueConstruct.connection = connection;
+                play(msg.guild, queueConstruct.songs[0]);
+            } catch (error) {
+                console.error(`**RANA** » I could not join the voice channel: \n${error}.`);
+                queue.delete(msg.guild.id);
+                return msg.channel.send(`**RANA** » I could not join the voice channel: \n${error}.`);
+            }
+        } else {
+            serverQueue.songs.push(song);
+            console.log(serverQueue.songs);
+            if(playlist) return undefined
+            else return msg.channel.send(`**RANA** » I just added **${song.title}** to the queue.`);
+        }
+    return undefined;
+}
+
 function play(guild, song) {
     const serverQueue = queue.get(guild.id);
     
@@ -197,8 +226,9 @@ function play(guild, song) {
     console.log(serverQueue.songs);
 
     const dispatcher = serverQueue.connection.playStream(ytdl(song.url))
-            .on('end', () => {
-                console.log('RANA » A Song just ended. Left voice channel.');
+            .on('end', reason => {
+                if(reason === 'Stream is not generating quickly enough') console.log('Song ended.');
+                else console.log(reason);
                 serverQueue.songs.shift();
                 play(guild, serverQueue.songs[0]);
             })
