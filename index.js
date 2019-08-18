@@ -7,7 +7,7 @@ const ytdl = require('ytdl-core')
 const client = new Client({ disableEveryone: true })
 
 const queue = new Map()
-let api = TeemoJS(LEAGUE_TOKEN)
+let api = TeemoJS(LEAGUE_TOKEN) 
 
 var status_active = false
 
