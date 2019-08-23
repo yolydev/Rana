@@ -1,43 +1,82 @@
-const { Client, Util } = require('discord.js')
 const discord = require('discord.js')
 const TeemoJS  = require('teemojs')
-const { DISCORD_TOKEN, YOUTUBE_TOKEN, LEAGUE_TOKEN, PREFIX } = require('./config')
 const YouTube = require('simple-youtube-api')
 const ytdl = require('ytdl-core')
+const {
+	prefix,
+    discordToken,
+    leagueToken,
+    youtubeToken
+} = require('./config.json');
 
-const client = new Client({ disableEveryone: true })
-
-const youtube = new YouTube(YOUTUBE_TOKEN)
+const client = new discord.Client()
+const youtube = new YouTube(youtubeToken)
+let api = TeemoJS(leagueToken)
 
 const queue = new Map()
-let api = TeemoJS(LEAGUE_TOKEN) 
-
-var status_active = false
 
 client.on('warn', console.warn)
 client.on('error', console.error)
 client.on('ready', () =>  {
     console.log('RANA » Ready to start playing some music!')
-    if(!status_active) {
-        setInterval(function() {
-            let statuses = ['twitch.tv/ehasywhin', 'quitw.ovh', 'github.com/yolydev']
-            let status = statuses[Math.floor(Math.random() * statuses.length)]
-            client.user.setPresence({ game: { name: status }, status: 'online'})
-            client.user.setPresence({ activity: { name: status, /*type: 'PLAYING'(STREAMING;LISTENING;WATCHING) */ }, status: 'online'})
-        }, 10000)
-    }
+    setInterval(function() {
+        let statuses = ['twitch.tv/ehasywhin', 'quitw.ovh', 'github.com/yolydev']
+        let status = statuses[Math.floor(Math.random() * statuses.length)]
+        client.user.setPresence({ game: { name: status }, status: 'online'})
+        client.user.setPresence({ activity: { name: status, /*type: 'PLAYING'(STREAMING;LISTENING;WATCHING) */ }, status: 'online'})
+    }, 10000)
 })
 client.on('disconnect', () => console.log('RANA » I just disconnected!'))
 client.on('reconnecting', () => console.log('RANA » Trying to reconnect right now!'))
+client.on('guildMemberAdd', member => {
+    const channel = member.guild.channels.filter(c => c.type === 'text').find('name', 'welcome')
+    if(!channel) return undefined;
+    var embed = new discord.RichEmbed()
+        .setColor(0xED3D7D)
+        .setTitle('quitw.ovh - my homepage')
+        .setURL('http://www.quitw.ovh')
+        .setAuthor(`Welcome ${member.user.tag} to the server ${member.guild.name}!`, member.guild.iconURL)
+        //.setDescription('League of Legends')
+        .setThumbnail(member.user.displayAvatarURL)
+        .addField('**Name**', `${member.displayName}`, true)
+        .addField('**Status**', isBot(), true)
+        .addBlankField()
+        .addField('**Joined At**', getDate())
+        .setFooter(`There are now ${member.guild.memberCount} Users on this server.`, member.guild.iconURL)
+    return channel.send(/*`${member}, welcome`, */embed)
+
+    function isBot() {
+        if(member.user.bot) return 'Bot'
+        else return 'Human'
+    }
+
+    function getDate() {
+        var today = new Date()
+        var date = today.getDate()
+        var month = today.getMonth()
+        var year = today.getFullYear()
+        var day = today.getDay()
+        var days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thurdays', 'Friday', 'Saturday']
+
+        var hour = today.getHours()
+        var minute = today.getMinutes()
+
+        if(minute < 10) minute = '0' + minute
+        else minute = minute
+
+        return `${days[day]}, ${date}.${month}.${year} at ${hour}:${minute} CET`;
+    }
+})
 client.on('message', async msg => {
+    //https://gist.github.com/y21/a599ef74c8746341dbcbd32093a69eb8
     if(msg.author.bot) return undefined
-    if(!msg.content.startsWith(PREFIX)) return undefined
+    if(!msg.content.startsWith(prefix)) return msg.reply('that\'s not a command buddy.')
     const args = msg.content.split(' ')
     const searchString = args.slice(1).join(' ')
     const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : ''
     const serverQueue = queue.get(msg.guild.id)
 
-    if(msg.content.startsWith(`${PREFIX}elo`)) {
+    if(msg.content.startsWith(`${prefix}elo`)) {
         try {
             const remainder = msg.content.substr('!elo '.length)
 
@@ -68,33 +107,34 @@ client.on('message', async msg => {
                         .setDescription('League of Legends')
                         .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.16.1/img/profileicon/${profileIconId}.png`)
                         .addField('Account Info', `Name: ${name}\nLevel: ${summonerLevel}`, true)
-                        .addField('Ranked Solo/Duo', `Tier: ${convertTier(tier)} ${convertRank(rank)} mit ${lp}LP\n ${wins}W/${losses}L`, true)
+                        .addField('Ranked Solo/Duo', `Tier: ${convertTier(tier)} ${convertRank(rank)} with ${lp}LP\n ${wins}W/${losses}L`, true)
                     msg.channel.send(embed)
                 })
             })
         } catch(error) {
             console.error(error)
         }
-    } else if(msg.content.startsWith(`${PREFIX}play`)) {
+    } else if(msg.content.startsWith(`${prefix}play`)) {
         console.log(`RANA » ${msg.author.username} just executed the play command.`)
         const voiceChannel = msg.member.voiceChannel
-        if(!voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.')
+        if(!voiceChannel) return msg.reply('you must be in a voice channel.')
         const permissions = voiceChannel.permissionsFor(msg.client.user)
         if(!permissions.has('CONNECT')) {
-            return msg.channel.send('**RANA** » I cannot connect to your voice channel.')
+            return msg.reply('I cannot connect to your voice channel.')
         }
         if(!permissions.has('SPEAK')) {
-            return msg.channel.send('**RANA** » I cannot speak in this voice channel.')
+            return msg.reply('I cannot speak in this voice channel.')
         }
 
         if(url.match(/^https?:\/\/(www.youtube.com|youtube.com)\/playlist(.*)$/)) {
             const playlist = await youtube.getPlaylist(url)
             const videos = await playlist.getVideos()
+            //if(videos.length > 100) return msg.channel.send('**RANA** » I couldn\'t add the playlist because it is too large. Choose a smaller playlist.')
             for(const video of Object.values(videos)) {
                 const video2 = await youtube.getVideoByID(video.id)
                 await handleVideo(video2, msg, voiceChannel, true)
             }
-            return msg.channel.send(`**RANA** » I just added the playlist **${playlist.title}** to the queue.`)
+            return msg.reply(`I just added the playlist **${playlist.title}** to the queue.`)
         } else {
             try {
                 var video = await youtube.getVideo(url)
@@ -104,76 +144,63 @@ client.on('message', async msg => {
                     var video = await youtube.getVideoByID(videos[0].id)
                 } catch (err) {
                     console.error(err);
-                    return msg.channel.send('**RANA** » Could not find anything.')
+                    return msg.reply('I could not find anything.')
                 }
             }
 
             return handleVideo(video, msg, voiceChannel)
         }
-    } else if(msg.content.startsWith(`${PREFIX}skip`)) {
-        if(!serverQueue) return msg.channel.send('**RANA** » There are no songs in the queue that I could skip.');
-        serverQueue.connection.dispatcher.end(`RANA » ${msg.author.username} just executed the skip command.`);
-        return undefined;
-    } else if(msg.content.startsWith(`${PREFIX}leave`)) {
-        if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
-        serverQueue.songs = [];
-        serverQueue.connection.dispatcher.end(`RANA » ${msg.author.username} just executed the leave command.`);
-        return undefined;
-    } else if(msg.content.startsWith(`${PREFIX}vol`)) {
-        console.log(`RANA » ${msg.author.username} just executed the vol command.`);
-        if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
-        if(!serverQueue) return msg.channel.send('**RANA** » There is no song playing right now.');
-        if(!args[1]) return msg.channel.send(`**RANA** » The current volume is: **${serverQueue.volume}**`);
-        serverQueue.volume = args[1];
-        serverQueue.connection.dispatcher.setVolumeLogarithmic(args[1] / 5);
-        return msg.channel.send(`**RANA** » I changed the volume to: **${args[1]}**`);
-    } else if(msg.content.startsWith(`${PREFIX}np`)) {
+    } else if(msg.content.startsWith(`${prefix}skip`)) {
+        if(!serverQueue) return msg.reply('there are no songs in the queue that I could skip.')
+        serverQueue.connection.dispatcher.end(`RANA » ${msg.author.username} just executed the skip command.`)
+        return undefined
+    } else if(msg.content.startsWith(`${prefix}leave`)) {
+        if(!msg.member.voiceChannel) return msg.reply('you must be in a voice channel.')
+        serverQueue.songs = []
+        serverQueue.connection.dispatcher.end(`RANA » ${msg.author.username} just executed the leave command.`)
+        return undefined
+    } else if(msg.content.startsWith(`${prefix}vol`)) {
+        console.log(`RANA » ${msg.author.username} just executed the vol command.`)
+        if(!msg.member.voiceChannel) return msg.reply('*you must be in a voice channel.')
+        if(!serverQueue) return msg.reply('there is no song playing right now.')
+        if(!args[1]) return msg.reply(`the current volume is: **${serverQueue.volume}**`)
+        serverQueue.volume = args[1]
+        serverQueue.connection.dispatcher.setVolumeLogarithmic(args[1] / 5)
+        return msg.reply(`I changed the volume to: **${args[1]}**`)
+    } else if(msg.content.startsWith(`${prefix}np`)) {
         console.log(`RANA » ${msg.author.username} just executed the np command.`);
-        if(!serverQueue) return msg.channel.send('**RANA** » There is no song playing right now.');
-        return msg.channel.send(`**RANA** » I am now playing: **${serverQueue.songs[0].title}**.`);
-    } else if(msg.content.startsWith(`${PREFIX}queue`)) {
-        console.log(`RANA » ${msg.author.username} just executed the queue command.`);
-        if(!serverQueue) return msg.channel.send('**RANA** » There is no song playing right now.');
+        if(!serverQueue) return msg.reply('there is no song playing right now.')
+        return msg.reply(`I am now playing: **${serverQueue.songs[0].title}**.`)
+    } else if(msg.content.startsWith(`${prefix}queue`)) {
+        console.log(`RANA » ${msg.author.username} just executed the queue command.`)
+        if(!serverQueue) return msg.reply('there is no song playing right now.')
         return msg.channel.send(`
 **Song Queue:**
 
 ${serverQueue.songs.map(song => `${song.title}`).join('\n')} 
 
 **Now Playing:** ${serverQueue.songs[0].title}
-        `);
-    } else if(msg.content.startsWith(`${PREFIX}pause`)) {
-        console.log(`RANA » ${msg.author.username} just executed the pause command.`);
-        if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
+        `)
+    } else if(msg.content.startsWith(`${prefix}pause`)) {
+        console.log(`RANA » ${msg.author.username} just executed the pause command.`)
+        if(!msg.member.voiceChannel) return msg.reply('you must be in a voice channel.')
         if(serverQueue && serverQueue.playing) {
-            serverQueue.playing = false;
-            serverQueue.connection.dispatcher.pause();
-            return msg.channel.send('**RANA** » I just paused the current song for you.')
+            serverQueue.playing = false
+            serverQueue.connection.dispatcher.pause()
+            return msg.reply('I just paused the current song for you.')
         }
-        return msg.channel.send('**RANA** » There is no song playing right now.');
-    } else if(msg.content.startsWith(`${PREFIX}resume`)) {
-        console.log(`RANA » ${msg.author.username} just executed the resume command.`);
-        if(!msg.member.voiceChannel) return msg.channel.send('**RANA** » You must be in a voice channel.');
+        return msg.reply('there is no song playing right now.') // CHECK .REPLY BELOW HERE
+    } else if(msg.content.startsWith(`${prefix}resume`)) {
+        console.log(`RANA » ${msg.author.username} just executed the resume command.`)
+        if(!msg.member.voiceChannel) return msg.reply('you must be in a voice channel.');
         if(serverQueue && !serverQueue.playing) {
             serverQueue.playing = true;
-            serverQueue.connection.dispatcher.resume();
-            return msg.channel.send('**RANA** » I just resumed the current song for you.')
+            serverQueue.connection.dispatcher.resume()
+            return msg.channel.send('▶ I just resumed the current song for you.')
         }
-        return msg.channel.send('**RANA** » There is no song playing right now.');
-    } /*else if(msg.content.startsWith(`${PREFIX}setstream`)) {   
-        const remainder = msg.content.substr('!setstream '.length);
-        
-        if(remainder === 'lec') {
-            client.user.setPresence({ game: { name: ' - Watching LEC Live!', type: "Streaming", url: "https://www.twitch.tv/riotgames"}});
-            status_active = true;
-        } else if(remainder === 'lcs') {
-            client.user.setPresence({ game: { name: ' - Watching LCS Live!', type: "Streaming", url: "https://www.twitch.tv/riotgames"}});
-            status_active = true;
-        } else if(remainder === 'reset') {
-            status_active = false;
-        }
-        
-    }*/
-    return undefined;
+        return msg.reply('there is no song playing right now.')
+    }
+    return undefined
 });
 
 async function handleVideo(video, msg, voiceChannel, playlist=false) {
@@ -195,51 +222,51 @@ async function handleVideo(video, msg, voiceChannel, playlist=false) {
             };
             queue.set(msg.guild.id, queueConstruct);
 
-            queueConstruct.songs.push(song);
+            queueConstruct.songs.push(song)
 
             try {
-                var connection = await voiceChannel.join();
-                queueConstruct.connection = connection;
-                play(msg.guild, queueConstruct.songs[0]);
+                var connection = await voiceChannel.join()
+                queueConstruct.connection = connection
+                play(msg.guild, queueConstruct.songs[0])
             } catch (error) {
-                console.error(`**RANA** » I could not join the voice channel: \n${error}.`);
-                queue.delete(msg.guild.id);
-                return msg.channel.send(`**RANA** » I could not join the voice channel: \n${error}.`);
+                console.error(`**RANA** » I could not join the voice channel: \n${error}.`)
+                queue.delete(msg.guild.id)
+                return msg.reply(`I could not join the voice channel: \n${error}.`)
             }
         } else {
-            serverQueue.songs.push(song);
-            console.log(serverQueue.songs);
+            serverQueue.songs.push(song)
+            console.log(serverQueue.songs)
             if(playlist) return undefined
-            else return msg.channel.send(`**RANA** » I just added **${song.title}** to the queue.`);
+            else return msg.channel.send(`✅ I just added **${song.title}** to the queue.`)
         }
     return undefined;
 }
 
 function play(guild, song) {
-    const serverQueue = queue.get(guild.id);
+    const serverQueue = queue.get(guild.id)
     
     if(!song) {
-        serverQueue.voiceChannel.leave();
+        serverQueue.voiceChannel.leave()
         queue.delete(guild.id);
         return;
     }
-    console.log(serverQueue.songs);
+    console.log(serverQueue.songs)
 
     const dispatcher = serverQueue.connection.playStream(ytdl(song.url))
             .on('end', reason => {
-                if(reason === 'Stream is not generating quickly enough') console.log('Song ended.');
-                else console.log(reason);
-                serverQueue.songs.shift();
-                play(guild, serverQueue.songs[0]);
+                /*if(reason === 'Stream is not generating quickly enough.') console.log('Song ended.')
+                else*/ console.log(reason)
+                serverQueue.songs.shift()
+                play(guild, serverQueue.songs[0])
             })
-            .on('error', error => console.error(error));
-    dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
+            .on('error', error => console.error(error))
+    dispatcher.setVolumeLogarithmic(serverQueue.volume / 5)
 
-    serverQueue.textChannel.send(`**RANA** » I just started playing: **${song.title}**`);
+    serverQueue.textChannel.send(`🎶 I just started playing **${song.title}**.`)
 }
 
 function convertTier(tier) {
-    const t = tier;
+    const t = tier
     switch(tier) {
         case 'IRON': return t.replace('IRON', 'Iron')
         case 'SILVER': return t.replace('SILVER', 'Silver')
@@ -262,4 +289,4 @@ function convertRank(rank) {
     }
 }
 
-client.login(DISCORD_TOKEN);
+client.login(discordToken);
