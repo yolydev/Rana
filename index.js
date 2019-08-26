@@ -36,14 +36,13 @@ client.on('guildMemberAdd', member => {
         .setTitle('quitw.ovh - my homepage')
         .setURL('http://www.quitw.ovh')
         .setAuthor(`Welcome ${member.user.tag} to the server ${member.guild.name}!`, member.guild.iconURL)
-        //.setDescription('League of Legends')
         .setThumbnail(member.user.displayAvatarURL)
         .addField('**Name**', `${member.displayName}`, true)
         .addField('**Status**', isBot(), true)
         .addBlankField()
         .addField('**Joined At**', getDate())
         .setFooter(`There are now ${member.guild.memberCount} Users on this server.`, member.guild.iconURL)
-    return channel.send(/*`${member}, welcome`, */embed)
+    return channel.send(embed)
 
     function isBot() {
         if(member.user.bot) return 'Bot'
