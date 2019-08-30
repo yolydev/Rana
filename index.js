@@ -20,7 +20,7 @@ client.on('error', console.error)
 client.on('ready', () =>  {
     console.log('RANA » Ready to start playing some music!')
     setInterval(function() {
-        let statuses = ['twitch.tv/ehasywhin', 'quitw.ovh', 'github.com/yolydev']
+        let statuses = ['twitch.tv/ehasywhin', 'quitw.ovh', 'github.com/yolydev', 'dope ass music!']
         let status = statuses[Math.floor(Math.random() * statuses.length)]
         client.user.setPresence({ game: { name: status }, status: 'online'})
         client.user.setPresence({ activity: { name: status, /*type: 'PLAYING'(STREAMING;LISTENING;WATCHING) */ }, status: 'online'})
@@ -69,7 +69,7 @@ client.on('guildMemberAdd', member => {
 client.on('message', async msg => {
     //https://gist.github.com/y21/a599ef74c8746341dbcbd32093a69eb8
     if(msg.author.bot) return undefined
-    if(!msg.content.startsWith(prefix)) return msg.reply('that\'s not a command buddy.')
+    const voice = msg.member.guild.channels.filter(a => a.type === 'voice').find('name', 'radio')
     const args = msg.content.split(' ')
     const searchString = args.slice(1).join(' ')
     const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : ''
@@ -117,6 +117,7 @@ client.on('message', async msg => {
         console.log(`RANA » ${msg.author.username} just executed the play command.`)
         const voiceChannel = msg.member.voiceChannel
         if(!voiceChannel) return msg.reply('you must be in a voice channel.')
+        if(voiceChannel.name !== voice.name) return msg.reply('you must be in the radio channel.')
         const permissions = voiceChannel.permissionsFor(msg.client.user)
         if(!permissions.has('CONNECT')) {
             return msg.reply('I cannot connect to your voice channel.')
