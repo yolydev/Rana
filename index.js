@@ -2,6 +2,7 @@ const discord = require('discord.js')
 const TeemoJS  = require('teemojs')
 const YouTube = require('simple-youtube-api')
 const ytdl = require('ytdl-core')
+const fs = require('fs')
 const {
 	prefix,
     discordToken,
@@ -74,12 +75,12 @@ client.on('message', async msg => {
     const searchString = args.slice(1).join(' ')
     const url = args[1] ? args[1].replace(/<(.+)>/g, '$1') : ''
     const serverQueue = queue.get(msg.guild.id)
-
+    
     if(msg.content.startsWith(`${prefix}elo`)) {
         try {
             const remainder = msg.content.substr('!elo '.length)
 
-            var profileIconId, name, id, summonerLevel, tier, rank, lp
+            var profileIconId, name, id, summonerLevel, tier, rank, lp, wins, losses, ratio
             api.get('euw1', 'summoner.getBySummonerName', remainder)
             .then(data =>  {
                 profileIconId = data.profileIconId
@@ -95,24 +96,71 @@ client.on('message', async msg => {
                     lp = entry.leaguePoints
                     wins = entry.wins
                     losses = entry.losses
+                    ratio = (wins / (wins + losses)) * 100
 
                     console.log(name + ' ' + id + '' + summonerLevel + ' ' + tier + ' ' + rank)
 
                     var embed = new discord.RichEmbed()
                         .setColor(0xED3D7D)
-                        .setTitle(name + '\'s op.gg')
+                        .setTitle(`op.gg: ${name}`)
                         .setURL(`https://euw.op.gg/summoner/userName=${name.replace(' ', '+')}`)
-                        .setAuthor(name + '\'s summoner profile')
+                        .setAuthor(`Summoner Profile: ${name}`)
                         .setDescription('League of Legends')
                         .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.16.1/img/profileicon/${profileIconId}.png`)
                         .addField('Account Info', `Name: ${name}\nLevel: ${summonerLevel}`, true)
-                        .addField('Ranked Solo/Duo', `Tier: ${convertTier(tier)} ${convertRank(rank)} with ${lp}LP\n ${wins}W/${losses}L`, true)
+                        .addField('Ranked Solo/Duo', `**${convertTier(tier)} ${convertRank(rank)}\n ${lp}LP** / ${wins}W ${losses}L\nWin Ratio ${ratio.toFixed(2)}%`, true)
                     msg.channel.send(embed)
                 })
             })
         } catch(error) {
             console.error(error)
         }
+    } else if(msg.content.startsWith(`${prefix}c`)) {
+        const errorMsg = `AurelionSol\nChogath\nDrMundo\nJarvanIV\nKaisa\nKhazix\nKogMaw\nLeblanc\nLeeSin\nMasterYi\nMissFortune\nWukong = MonkeyKing\nRekSai\nTahmKench\nTwistedFate\nVelkoz`
+        try {
+            const remainder = msg.content.substr('!c '.length)
+            if(remainder == '') {
+                msg.reply('Make sure to enter a champion name!');
+                return
+            }
+            var champion = remainder.replace(/^./, remainder[0].toUpperCase())
+            /*if(remainder.includes('twisted') || remainder.includes('tf'))
+                champion = 'TwistedFate'
+            console.log(champion)*/
+            console.log(champion)
+            var content = fs.readFileSync(`champion_9.19.1/${champion}.json`, 'utf8')
+            var jsonData = JSON.parse(content)
+            var championData = jsonData.data[`${champion}`] //Case sensitive
+            var skinData = championData['skins']
+            
+            var skinString = ""
+            for(var i = 1; i < skinData.length; ++i) {
+                if(i == 1)
+                    skinString += skinData[i].name
+                else
+                    skinString +=  ", " + skinData[i].name
+            }
+            console.log(skinData)
+            console.log(skinString)
+
+            var embed = new discord.RichEmbed()
+                .setColor(0xED3D7D)
+                .setTitle(champion)
+                .addField('Id', `${championData.id}`, true)
+                .addField('Name', `${championData.name}`, true)
+                .addField('Key', `${championData.key}`)
+                .addField('Skins', `${skinString}`, true)
+                .setThumbnail(`http://cdn.communitydragon.org/9.19.1/champion/${champion}/square`)
+
+                //.setURL(`https://euw.op.gg/summoner/userName=${name.replace(' ', '+')}`)
+                //.setAuthor(name + '\'s summoner profile')
+                //.setDescription('League of Legends')
+                //.addField('Account Info', `Name: ${name}\nLevel: ${summonerLevel}`, true)
+            msg.channel.send(embed)
+        } catch(error) {
+            msg.reply(`make sure you entered the right **champion name**. Here\'s a list of champions with **special characters** in their names: (Names are case-sensitive!)\n\n${errorMsg}`)
+        }
+        
     } else if(msg.content.startsWith(`${prefix}play`)) {
         console.log(`RANA » ${msg.author.username} just executed the play command.`)
         const voiceChannel = msg.member.voiceChannel
