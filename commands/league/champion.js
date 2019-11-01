@@ -23,14 +23,7 @@ module.exports = class ProfileCommand extends Command {
         });
     }
 
-    run(message, { text } ) {
-        summonerElo(text);
+    run(message) {
+        message.reply('currently unavailable');
     }
 };
-
-function summonerElo(text) {
-    api.get('euw1', 'summoner.getBySummonerName', text)
-    .then(summonerData => {
-        console.log(summonerData.id);
-    });
-}
