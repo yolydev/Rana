@@ -30,7 +30,7 @@ module.exports = class ProfileCommand extends Command {
         fs.writeFile(`./users/${message.author.id}.json`, json, (err) => {
             if(!err) {
                 console.log(`Changed username from ${message.author.id}`);
-                message.reply(`changed your username to **${text}**!`)
+                message.reply(`changed your info to **${text}**!`)
             }
         });
     }
