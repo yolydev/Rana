@@ -58,7 +58,6 @@ module.exports = class EloCommand extends Command {
                 api.get('euw1','league.getLeagueEntriesForSummoner', summonerData.id)
                 .then(leagueEntry => {
                     let leagueData = leagueEntry.find(x => x.queueType == 'RANKED_SOLO_5x5');
-                    let tftData = leagueEntry.find(y => y.queueType == 'RANKED_TFT');
 
                     if(leagueData == undefined) {
                         ranked = 'Unranked';
@@ -66,14 +65,7 @@ module.exports = class EloCommand extends Command {
                         ranked = `${leagueData.tier} ${leagueData.rank}\n ${leagueData.leaguePoints} LP / ${leagueData.wins}W ${leagueData.losses}L`;
                         console.log(`\nSummoners Rift:\n\nTier:${leagueData.tier}\nRank:${leagueData.rank}\nLP:${leagueData.leaguePoints}\nWins:${leagueData.wins}\nLosses:${leagueData.losses}\n`);
                     }
-
-                    if(tftData == undefined) {
-                        tft = 'Unranked';
-                    } else {
-                        tft = `${tftData.tier} ${tftData.rank}\n ${tftData.leaguePoints} LP / ${tftData.wins}W ${tftData.losses}L`;
-                        console.log(`TFT:\n\nTier:${tftData.tier}\nRank:${tftData.rank}\nLP:${tftData.leaguePoints}\nWins:${tftData.wins}\nLosses:${tftData.losses}`);
-                    }
-
+                    
                     api.get('euw1', 'championMastery.getAllChampionMasteries', summonerData.id)
                     .then(championData => {
                         for(var i = 0; i <= 2; ++i) {   
@@ -84,7 +76,7 @@ module.exports = class EloCommand extends Command {
                         api.get('euw1', 'match.getMatchlist', summonerData.accountId)
                         .then(matchListData => {
                             for(var j = 0; j <= 2; ++j) {
-                                topMatchList += `<:${translate.Champions[matchListData.matches[j].champion]}:${emoji[translate.Champions[championData[i].championId]]}> - ${translate.Queues[matchListData.matches[j].queue]}\n`;
+                                topMatchList += `<:${translate.Champions[matchListData.matches[j].champion]}:${emoji[translate.Champions[matchListData.matches[j].champion]]}> - ${translate.Queues[matchListData.matches[j].queue]}\n`;
                             }
 
                             const embed = new RichEmbed()

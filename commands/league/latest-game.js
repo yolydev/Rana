@@ -37,14 +37,14 @@ module.exports = class LatestGameCommand extends Command {
         var blue_playerInfo = "", blue_playerStats = "", blue_playerGold = "";
         var blue_championEmoji = "";
         var blue_championLevel, blue_creepScore, blue_goldEarned;
-        var blue_kills, blue_deaths, blue_assists;
+        var blue_kda, blue_kills, blue_deaths, blue_assists;
         var blue_teamKills = 0, blue_teamDeaths = 0, blue_teamAssists = 0;
 
         var red_summonerNames;
         var red_playerInfo = "", red_playerStats = "", red_playerGold = "";
         var red_championEmoji = "";
         var red_championLevel, red_creepScore, red_goldEarned;
-        var red_kills, red_deaths, red_assists;
+        var red_kda, red_kills, red_deaths, red_assists;
         var red_teamKills = 0, red_teamDeaths = 0, red_teamAssists = 0;
 
         var scoreEmoji = `<:score:637624115150454814>`;
@@ -102,14 +102,13 @@ module.exports = class LatestGameCommand extends Command {
                         blue_playerInfo += `${blue_championEmoji} ${blue_summonerNames}\n${fillerEmoji}\n`;
                         blue_playerStats += `${scoreEmoji} **${blue_kills} / ${blue_deaths} / ${blue_assists}**\n${fillerEmoji}${((blue_kills+blue_assists)/blue_deaths).toFixed(2)}:1 KDA\n`.replace('Infinity:1', 'Perfect');
                         blue_playerGold += `${goldEmoji} ${blue_goldEarned}\n${minionEmoji} ${blue_creepScore}\n`;
-                        blue_playerCS += `${minionEmoji} ${blue_creepScore}\n`;
                     }
 
                     //Red Team  
                     for(var l = 5; l < 10; ++l) {
                         for(var red = 5; red < 10; ++red) {
                             red_championEmoji = `<:${translate.Champions[matchData.participants[l].championId]}:${emoji[`${translate.Champions[matchData.participants[l].championId]}`]}>`;
-
+                            
                             red_kills = matchData.participants[l].stats.kills
                             red_deaths = matchData.participants[l].stats.deaths
                             red_assists = matchData.participants[l].stats.assists
@@ -127,7 +126,6 @@ module.exports = class LatestGameCommand extends Command {
                         red_playerInfo += `${red_championEmoji} ${red_summonerNames}\n${fillerEmoji}\n`;
                         red_playerStats += `${scoreEmoji} **${red_kills} / ${red_deaths} / ${red_assists}**\n${fillerEmoji}${((red_kills+red_assists)/red_deaths).toFixed(2)}:1 KDA\n`;
                         red_playerGold += `${goldEmoji} ${red_goldEarned}\n${minionEmoji} ${red_creepScore}\n`;
-                        red_playerCS += `${minionEmoji} ${red_creepScore}\n`;
                     }
                     
                     const embed = new RichEmbed()
