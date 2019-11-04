@@ -29,6 +29,7 @@ module.exports = class EloCommand extends Command {
     }
 
     run(message, { text }) {
+        //Convert each into functions
         if(!text == '') {
             getLeagueName = text;
         } else {
@@ -65,35 +66,34 @@ module.exports = class EloCommand extends Command {
                         ranked = `${leagueData.tier} ${leagueData.rank}\n ${leagueData.leaguePoints} LP / ${leagueData.wins}W ${leagueData.losses}L`;
                         console.log(`\nSummoners Rift:\n\nTier:${leagueData.tier}\nRank:${leagueData.rank}\nLP:${leagueData.leaguePoints}\nWins:${leagueData.wins}\nLosses:${leagueData.losses}\n`);
                     }
-                    
-                    api.get('euw1', 'championMastery.getAllChampionMasteries', summonerData.id)
-                    .then(championData => {
-                        for(var i = 0; i <= 2; ++i) {   
-                            topChamps += `<:${translate.Champions[championData[i].championId]}:${emoji[translate.Champions[championData[i].championId]]}> - ${championData[i].championPoints} pts [${championData[i].championLevel}]\n`;
-                        }
-                        console.log(topChamps);
-
-                        api.get('euw1', 'match.getMatchlist', summonerData.accountId)
-                        .then(matchListData => {
-                            for(var j = 0; j <= 2; ++j) {
-                                topMatchList += `<:${translate.Champions[matchListData.matches[j].champion]}:${emoji[translate.Champions[matchListData.matches[j].champion]]}> - ${translate.Queues[matchListData.matches[j].queue]}\n`;
+                        api.get('euw1', 'championMastery.getAllChampionMasteries', summonerData.id)
+                        .then(championData => {
+                            for(var i = 0; i <= 2; ++i) {   
+                                topChamps += `<:${translate.Champions[championData[i].championId]}:${emoji[translate.Champions[championData[i].championId]]}> - ${championData[i].championPoints} pts [${championData[i].championLevel}]\n`;
                             }
+                            console.log(topChamps);
 
-                            const embed = new RichEmbed()
-                                .setColor(0xED3D7D)
-                                .setTitle(`op.gg: ${summonerData.name}`)
-                                .setURL(`https://euw.op.gg/summoner/userName=${summonerData.name.replace(' ', '+')}`)
-                                .setAuthor(`Summoner Profile: ${summonerData.name}`)
-                                .setDescription('League of Legends')
-                                .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.21.1/img/profileicon/${summonerData.profileIconId}.png`)
-                                .addField('Accound Info', `Name: ${summonerData.name}\nLevel: ${summonerData.summonerLevel}\nRegion: EUW`)
-                                .addField('Ranked Solo/Duo', ranked, true)
-                                .addField('TFT', tft, true)
-                                .addField('Top Champions', topChamps, true)
-                                .addField('Latest Games', topMatchList, true)
-                            message.channel.send(embed);
+                            api.get('euw1', 'match.getMatchlist', summonerData.accountId)
+                            .then(matchListData => {
+                                for(var j = 0; j <= 2; ++j) {
+                                    topMatchList += `<:${translate.Champions[matchListData.matches[j].champion]}:${emoji[translate.Champions[matchListData.matches[j].champion]]}> - ${translate.Queues[matchListData.matches[j].queue]}\n`;
+                                }
+
+                                const embed = new RichEmbed()
+                                    .setColor(0xED3D7D)
+                                    .setTitle(`op.gg: ${summonerData.name}`)
+                                    .setURL(`https://euw.op.gg/summoner/userName=${summonerData.name.replace(' ', '+')}`)
+                                    .setAuthor(`Summoner Profile: ${summonerData.name}`)
+                                    .setDescription('League of Legends')
+                                    .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.21.1/img/profileicon/${summonerData.profileIconId}.png`)
+                                    .addField('Accound Info', `Name: ${summonerData.name}\nLevel: ${summonerData.summonerLevel}\nRegion: EUW`)
+                                    .addField('Ranked Solo/Duo', ranked, true)
+                                    .addField('TFT', tft, true)
+                                    .addField('Top Champions', topChamps, true)
+                                    .addField('Latest Games', topMatchList, true)
+                                message.channel.send(embed);
+                            });
                         });
-                    });
                 });
             });
         } catch(error) {

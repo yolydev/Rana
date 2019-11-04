@@ -1,5 +1,7 @@
 const { Command } = require('discord.js-commando');
 const { RichEmbed } = require('discord.js');
+const assert = require("assert");
+
 const auth = require('../../JSON/auth.json');
 const emoji = require('../../JSON/emoji.json');
 const translate = require('../../JSON/translations.json');
@@ -27,7 +29,9 @@ module.exports = class GameCommand extends Command {
         });
     }
 
-    run(message, { text }) {
+    async run(message, { text }) {
+        var fillerEmoji = `<:filler:637626828093259809>`;
+
         if(!text == '') {
             getLeagueName = text;
         } else {
@@ -42,78 +46,65 @@ module.exports = class GameCommand extends Command {
             }
         }
 
-        var blue_playerName = "", blue_playerRank = "", blue_playerMasteries = "";
-        var red_playerName = "", red_playerRank = "", red_playerMasteries = "";
-
-        var msg = false;
-        var id
         if(getLeagueName == '') {
             message.reply('You have no summoner set, do **.editprofile <summonerName>** to set one!'); return;
         }
         try {
-            api.get('euw1', 'summoner.getBySummonerName', getLeagueName)
-            .then(summonerData => {
-                api.get('euw1', 'spectator.getCurrentGameInfoBySummoner', summonerData.id)
-                .then(spectatorData => {
-                    console.log(spectatorData.participants.length);
-                    //for(var i = 0; i < 10; i++) {
-                        
-                        /*if(spectatorData.participants[i].teamId == 100) {
-                            blue_playerName += `<:${translate.Champions[spectatorData.participants[i].championId]}:${emoji[translate.Champions[spectatorData.participants[i].championId]]}> | ${spectatorData.participants[i].summonerName}\n`;
-                        } else if(spectatorData.participants[i].teamId == 200) {
-                            red_playerName += `<:${translate.Champions[spectatorData.participants[i].championId]}:${emoji[translate.Champions[spectatorData.participants[i].championId]]}> | ${spectatorData.participants[i].summonerName}\n`;
-                        } */
-                    
-                        api.get('euw1', 'league.getLeagueEntriesForSummoner',  spectatorData.participants.forEach(x => { x.summonerId; console.log(x.summonerId); })/*spectatorData.participants[i].summonerId */)
-                        .then(leagueData => {
-                            
-                            let solo = leagueData.find(x => x.queueType == 'RANKED_SOLO_5x5');
-                            
-                            if(solo == undefined) blue_playerRank += `Unranked\n`
-                            else blue_playerRank += `<:${solo.tier}:${emoji[solo.tier]}>\n`;
+            const summoner = await api.get('euw1', 'summoner.getBySummonerName', getLeagueName);
+            const spectator = await api.get('euw1', 'spectator.getCurrentGameInfoBySummoner', summoner.id);
 
-                            console.log(blue_playerRank);
+            if(spectator == null) {
+                message.reply(`**${getLeagueName}** currently not in-game`); return;
+            }
 
-                            /*const embed = new RichEmbed()
-                                .setTitle('Test')
-                                .setDescription('Test')
-                                .addField('Blue Team', `a${blue_playerName}`, true)
-                                .addField('Rank', `a${blue_playerRank}`, true)
-                                .addField('Mastery', 'a', true)
-                                .addField('Red Team', `a${red_playerName}`, true)
-                                .addField('Rank', 'a', true)
-                                .addField('Mastery', 'a', true)
-                            message.channel.send(embed);*/
-                        }); 
-                    //}
-                });
-            });
 
-/*
-                        
-                    
-                    
-                    
-                    if(teamId == 100) {
-                            blue_playerName += `<:${translate.Champions[spectatorData.participants[i].championId]}:${emoji[translate.Champions[spectatorData.participants[i].championId]]}> | ${spectatorData.participants[i].summonerName}\n`;
-                        } else if(teamId == 200) {
-                            red_playerName += `<:${translate.Champions[spectatorData.participants[i].championId]}:${emoji[translate.Champions[spectatorData.participants[i].championId]]}> | ${spectatorData.participants[i].summonerName}\n`;
-                        }
-
-                    api.get('euw1', 'league.getLeagueEntriesForSummoner', spectatorData.participants[i].summonerId)
-                    .then(leagueData => {
-                        for(var j = 0; j < 10; ++j) {
-                            if(spectatorData.participants[i].teamId == 100) {
-                                blue_playerRank += `<:${leagueData.tier}:${emoji[leagueData.tier]}>`;
-                            } else if(spectatorData.participants[i].teamId == 200) {
-                                blue_playerRank += `<:${leagueData.tier}:${emoji[leagueData.tier]}>`;
-                            }
-                        } 
-
-                        */
+            var teamBlueSummoners = "", teamBlueLeagues = "";
+            
+            var teamRedSummoners = "", teamRedLeagues = "";
+            for(var i = 0; i < 10; i++) {
+                const league = await api.get('euw1', 'league.getLeagueEntriesForSummoner', spectator.participants[i].summonerId);
+                let entry = league.find(e => e.queueType === 'RANKED_SOLO_5x5');
                 
-        } catch(error) {
-            message.reply('Summoner not found.');
+                
+                if(spectator.participants[i].teamId === 100) {
+                    teamBlueSummoners += `<:${translate.Champions[spectator.participants[i].championId]}:${emoji[translate.Champions[spectator.participants[i].championId]]}> | ${spectator.participants[i].summonerName}\n`;
+                    
+                    if(entry === undefined) teamBlueLeagues += `Unranked\n`;
+                    else teamBlueLeagues += `<:${entry.tier}:${emoji[entry.tier]}>${(entry.tier).charAt(0).toUpperCase() + (entry.tier).slice(1).toLowerCase()} ${entry.rank} (${entry.leaguePoints} LP)\n`;
+                } else if(spectator.participants[i].teamId === 200) {
+                    teamRedSummoners += `<:${translate.Champions[spectator.participants[i].championId]}:${emoji[translate.Champions[spectator.participants[i].championId]]}> | ${spectator.participants[i].summonerName}\n`;
+
+                    if(entry === undefined) teamRedLeagues += `Unranked\n`;
+                    else teamRedLeagues += `<:${entry.tier}:${emoji[entry.tier]}>${(entry.tier).charAt(0).toUpperCase() + (entry.tier).slice(1).toLowerCase()} ${entry.rank} (${entry.leaguePoints} LP)\n`;
+                }
+            }
+            
+            /* for(var i = 1; i < 10; i++) {
+                if(spectator.particpants[i].teamdId == 100) {
+                    teamBlue += `${spectator.participants[i].summonerName}}\n`;
+                } else if(spectator.particpants[i].teamdId == 200) {
+                    teamRED += `${spectator.participants[i].summonerName}\n`;
+                }
+            } */
+            
+
+            
+            
+            
+
+            const embed = new RichEmbed()
+                .setTitle('Test')
+                .setDescription('Test')
+                .addField('Blue Team', `${teamBlueSummoners}`, true)
+                .addField('Rank', `${teamBlueLeagues}`, true)
+                .addField('Mastery', 'Soon', true)
+                .addField('Red Team', `${teamRedSummoners}`, true)
+                .addField('Rank', `${teamRedLeagues}`, true)
+                .addField('Mastery', 'Soon', true)
+            message.channel.send(embed);
+        } catch(e) {
+            console.error(e);
         }
+        
     }
 };

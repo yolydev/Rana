@@ -24,18 +24,7 @@ client.registry
     .registerCommandsIn(path.join(__dirname, 'commands'));
 
 client.on('guildMemberAdd', member => {
-    let json = {
-        name: member.user.username,
-        discriminator: member.user.discriminator,
-        id: member.user.id,
-        leagueName: ''
-    }
-    json = JSON.stringify(json);
-    fs.writeFile(`users/${member.id}.json`, json, (err) => {
-        if(!err) {
-            console.log(`Created JSON file of ${member.id}`);
-        }
-    });
+    createUserFile(member);
 });
 
 client.once('ready', () => {
@@ -44,3 +33,19 @@ client.once('ready', () => {
 });
 
 client.login(auth.token);
+
+function createUserFile(member) {
+    let jsonFile = {
+        name: member.user.username,
+        discriminator: member.user.discriminator,
+        id: member.user.id,
+        leagueName: ''
+    };
+
+    jsonFile = JSON.stringify(jsonFile);
+    fs.writeFile(`users/${member.user.id}.json`, jsonFile, (err) => {
+        if(!err) {
+            console.log(`Created JSON file of ${member.id}`);
+        }
+    });
+}
