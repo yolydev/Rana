@@ -57,10 +57,9 @@ module.exports = class GameCommand extends Command {
                 message.reply(`**${getLeagueName}** currently not in-game`); return;
             }
 
-
             var teamBlueSummoners = "", teamBlueLeagues = "";
-            
             var teamRedSummoners = "", teamRedLeagues = "";
+
             for(var i = 0; i < 10; i++) {
                 const league = await api.get('euw1', 'league.getLeagueEntriesForSummoner', spectator.participants[i].summonerId);
                 let entry = league.find(e => e.queueType === 'RANKED_SOLO_5x5');
@@ -77,20 +76,7 @@ module.exports = class GameCommand extends Command {
                     if(entry === undefined) teamRedLeagues += `Unranked\n`;
                     else teamRedLeagues += `<:${entry.tier}:${emoji[entry.tier]}>${(entry.tier).charAt(0).toUpperCase() + (entry.tier).slice(1).toLowerCase()} ${entry.rank} (${entry.leaguePoints} LP)\n`;
                 }
-            }
-            
-            /* for(var i = 1; i < 10; i++) {
-                if(spectator.particpants[i].teamdId == 100) {
-                    teamBlue += `${spectator.participants[i].summonerName}}\n`;
-                } else if(spectator.particpants[i].teamdId == 200) {
-                    teamRED += `${spectator.participants[i].summonerName}\n`;
-                }
-            } */
-            
-
-            
-            
-            
+            }           
 
             const embed = new RichEmbed()
                 .setTitle('Test')
