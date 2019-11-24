@@ -27,7 +27,7 @@ module.exports = class LatestGameCommand extends Command {
         });
     }
 
-    run(message, { text }) {
+    async run(message, { text }) {
         /*
             TODO: 
                 fix cs (value too low)
@@ -69,80 +69,75 @@ module.exports = class LatestGameCommand extends Command {
         if(getLeagueName == '') {
             message.reply('You have no summoner set, do **.editprofile <summonerName>** to set one!'); return;
         }
-        api.get('euw1', 'summoner.getBySummonerName', getLeagueName)
-        .then(summonerData => {
-            console.log(`Name:${summonerData.name}\nId:${summonerData.id}\nAccount Id:${summonerData.accountId}\nPUUID:${summonerData.puuid}\nSummonerLevel:${summonerData.summonerLevel}\nProfileIconId:${summonerData.profileIconId}`);
+        try {
+            const summoner = await api.get('euw1', 'summoner.getBySummonerName', getLeagueName);
+            const matchList = await api.get('euw1', 'match.getMatchlist', summoner.accountId, { season: 13}) //Filter champion, season and/or queue
+            const match = await api.get('euw1', 'match.getMatch', matchList.matches[0].gameId);
 
-            api.get('euw1', 'match.getMatchlist', summonerData.accountId, { /*champion: 142,*/ season: 13/*, queue: 420*/}) //Filter champion, season and/or queue
-            .then(matchlistData => { 
-                console.log(matchlistData.matches[0].gameId);
-                console.log(matchlistData.matches.queue);
+            for(var k = 0; k < 5; ++k) {
+                for(var blue = 0; blue < 5; ++blue) {
+                    blue_championEmoji = `<:${translate.Champions[match.participants[k].championId]}:${emoji[`${translate.Champions[match.participants[k].championId]}`]}>`;
 
-                api.get('euw1', 'match.getMatch', matchlistData.matches[0].gameId)
-                .then(matchData => {
-                    //Blue Team
-                    for(var k = 0; k < 5; ++k) {
-                        for(var blue = 0; blue < 5; ++blue) {
-                            blue_championEmoji = `<:${translate.Champions[matchData.participants[k].championId]}:${emoji[`${translate.Champions[matchData.participants[k].championId]}`]}>`;
+                    blue_kills = match.participants[k].stats.kills;
+                    blue_deaths = match.participants[k].stats.deaths
+                    blue_assists = match.participants[k].stats.assists
+                    blue_kda = `${((match.participants[k].stats.kills + match.participants[k].stats.assists) / match.participants[k].stats.deaths).toFixed(2).replace('Infinity:1', 'Perfect')}`;
 
-                            blue_kills = matchData.participants[k].stats.kills;
-                            blue_deaths = matchData.participants[k].stats.deaths
-                            blue_assists = matchData.participants[k].stats.assists
-                            blue_kda = `${((matchData.participants[k].stats.kills + matchData.participants[k].stats.assists) / matchData.participants[k].stats.deaths).toFixed(2)}`;
+                    blue_championLevel = `${match.participants[k].stats.champLevel}`;
+                    blue_goldEarned = match.participants[k].stats.goldEarned
+                    blue_creepScore = `${match.participants[k].stats.totalMinionsKilled}`;
+                }
+                blue_teamKills += blue_kills;
+                blue_teamDeaths += blue_deaths;
+                blue_teamAssists += blue_assists;
 
-                            blue_championLevel = `${matchData.participants[k].stats.champLevel}`;
-                            blue_goldEarned = matchData.participants[k].stats.goldEarned
-                            blue_creepScore = `${matchData.participants[k].stats.totalMinionsKilled}`;
-                        }
-                        blue_teamKills += blue_kills;
-                        blue_teamDeaths += blue_deaths;
-                        blue_teamAssists += blue_assists;
+                blue_summonerNames = `${match.participantIdentities[k].player.summonerName}`;
+                blue_playerInfo += `${blue_championEmoji} ${blue_summonerNames}\n${fillerEmoji}\n`;
+                blue_playerStats += `${scoreEmoji} **${blue_kills} / ${blue_deaths} / ${blue_assists}**\n${fillerEmoji}${((blue_kills+blue_assists)/blue_deaths).toFixed(2)}:1 KDA\n`.replace('Infinity:1', 'Perfect');
+                blue_playerGold += `${goldEmoji} ${blue_goldEarned}\n${minionEmoji} ${blue_creepScore}\n`;
+            }
 
-                        blue_summonerNames = `${matchData.participantIdentities[k].player.summonerName}`;
-                        blue_playerInfo += `${blue_championEmoji} ${blue_summonerNames}\n${fillerEmoji}\n`;
-                        blue_playerStats += `${scoreEmoji} **${blue_kills} / ${blue_deaths} / ${blue_assists}**\n${fillerEmoji}${((blue_kills+blue_assists)/blue_deaths).toFixed(2)}:1 KDA\n`.replace('Infinity:1', 'Perfect');
-                        blue_playerGold += `${goldEmoji} ${blue_goldEarned}\n${minionEmoji} ${blue_creepScore}\n`;
-                    }
-
-                    //Red Team  
-                    for(var l = 5; l < 10; ++l) {
-                        for(var red = 5; red < 10; ++red) {
-                            red_championEmoji = `<:${translate.Champions[matchData.participants[l].championId]}:${emoji[`${translate.Champions[matchData.participants[l].championId]}`]}>`;
-                            
-                            red_kills = matchData.participants[l].stats.kills
-                            red_deaths = matchData.participants[l].stats.deaths
-                            red_assists = matchData.participants[l].stats.assists
-                            red_kda = `${((matchData.participants[l].stats.kills + matchData.participants[l].stats.assists) / matchData.participants[l].stats.deaths).toFixed(2).replace('Infinity:1', 'Perfect')}`;
-
-                            red_championLevel = `${matchData.participants[l].stats.champLevel}`;
-                            red_goldEarned = `${matchData.participants[l].stats.goldEarned}`;
-                            red_creepScore = `${matchData.participants[l].stats.totalMinionsKilled}`;
-                        }
-                        red_teamKills += red_kills;
-                        red_teamDeaths += red_deaths;
-                        red_teamAssists += red_assists;
-
-                        red_summonerNames = `${matchData.participantIdentities[l].player.summonerName}`;
-                        red_playerInfo += `${red_championEmoji} ${red_summonerNames}\n${fillerEmoji}\n`;
-                        red_playerStats += `${scoreEmoji} **${red_kills} / ${red_deaths} / ${red_assists}**\n${fillerEmoji}${((red_kills+red_assists)/red_deaths).toFixed(2)}:1 KDA\n`;
-                        red_playerGold += `${goldEmoji} ${red_goldEarned}\n${minionEmoji} ${red_creepScore}\n`;
-                    }
+            //Red Team  
+            for(var l = 5; l < 10; ++l) {
+                for(var red = 5; red < 10; ++red) {
+                    red_championEmoji = `<:${translate.Champions[match.participants[l].championId]}:${emoji[`${translate.Champions[match.participants[l].championId]}`]}>`;
                     
-                    const embed = new RichEmbed()
-                        .setColor(0xED3D7D)
-                        .setTitle(`${summonerData.name}`)
-                        //.setAuthor(`${winOrLoss}`)
-                        .setDescription(`Latest Game » **${translate.Queues[matchlistData.matches[0].queue]}**`)
-                        .addField(`Blue Team » ${blue_teamKills} / ${blue_teamDeaths} / ${blue_teamAssists}`, `${blue_playerInfo}`, true)
-                        .addField(`** **`, `${blue_playerStats}`, true)
-                        .addField(`** **`, `${blue_playerGold}`, true)
-                        .addField('** **', '** **')
-                        .addField(`Red Team » ${red_teamKills} / ${red_teamDeaths} / ${red_teamAssists}`, `${red_playerInfo}`, true)
-                        .addField(`** **`, `${red_playerStats}`, true)
-                        .addField(`** **`, `${red_playerGold}`, true)
-                    message.channel.send(embed);
-                });
-            });
-        });
+                    red_kills = match.participants[l].stats.kills
+                    red_deaths = match.participants[l].stats.deaths
+                    red_assists = match.participants[l].stats.assists
+                    red_kda = `${((match.participants[l].stats.kills + match.participants[l].stats.assists) / match.participants[l].stats.deaths).toFixed(2).replace('Infinity:1', 'Perfect')}`;
+
+                    red_championLevel = `${match.participants[l].stats.champLevel}`;
+                    red_goldEarned = `${match.participants[l].stats.goldEarned}`;
+                    red_creepScore = `${match.participants[l].stats.totalMinionsKilled}`;
+                }
+                red_teamKills += red_kills;
+                red_teamDeaths += red_deaths;
+                red_teamAssists += red_assists;
+
+                red_summonerNames = `${match.participantIdentities[l].player.summonerName}`;
+                red_playerInfo += `${red_championEmoji} ${red_summonerNames}\n${fillerEmoji}\n`;
+                red_playerStats += `${scoreEmoji} **${red_kills} / ${red_deaths} / ${red_assists}**\n${fillerEmoji}${((red_kills+red_assists)/red_deaths).toFixed(2)}:1 KDA\n`.replace('Infinity:1', 'Perfect');
+                red_playerGold += `${goldEmoji} ${red_goldEarned}\n${minionEmoji} ${red_creepScore}\n`;
+            }
+            
+            const embed = new RichEmbed()
+                .setColor(0xED3D7D)
+                .setTitle(`${summoner.name}`)
+                //.setAuthor(`${winOrLoss}`)
+                .setDescription(`Latest Game » **${translate.Queues[matchList.matches[0].queue]}**`)
+                .addField(`Blue Team » ${blue_teamKills} / ${blue_teamDeaths} / ${blue_teamAssists}`, `${blue_playerInfo}`, true)
+                .addField(`** **`, `${blue_playerStats}`, true)
+                .addField(`** **`, `${blue_playerGold}`, true)
+                .addField('** **', '** **')
+                .addField(`Red Team » ${red_teamKills} / ${red_teamDeaths} / ${red_teamAssists}`, `${red_playerInfo}`, true)
+                .addField(`** **`, `${red_playerStats}`, true)
+                .addField(`** **`, `${red_playerGold}`, true)
+            message.channel.send(embed);
+            
+        } catch(error) {
+            console.error(error);
+            message.reply('Error, please contact **CX#9996**');
+        }
     }
 };

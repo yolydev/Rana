@@ -17,7 +17,7 @@ module.exports = class GameCommand extends Command {
             name: 'game',
             group: 'league',
             memberName: 'game',
-            description: 'Inactive Command',/*'Get information if a Summoner is in-game or not and if yes provide more information.',*/
+            description: 'Get information if a Summoner is in-game or not and if yes provide more information.',
             args: [
                 {
                     key: 'text',
@@ -52,7 +52,7 @@ module.exports = class GameCommand extends Command {
         try {
             const summoner = await api.get('euw1', 'summoner.getBySummonerName', getLeagueName);
             const spectator = await api.get('euw1', 'spectator.getCurrentGameInfoBySummoner', summoner.id);
-            console.log(spectator.observers);
+            
             if(spectator == null) {
                 message.reply(`**${getLeagueName}** currently not in-game`); return;
             }
@@ -79,7 +79,7 @@ module.exports = class GameCommand extends Command {
                     if(entry === undefined) teamRedLeagues += `Unranked${fillerEmoji}\n`;
                     else teamRedLeagues += `<:${entry.tier}:${emoji[entry.tier]}>${(entry.tier).charAt(0).toUpperCase() + (entry.tier).slice(1).toLowerCase()} ${entry.rank} (${entry.leaguePoints} LP)\n`;
 
-                    if(mastery === null) teamRedChampionPoints += `${fillerEmoji}0\n`;
+                    if(mastery === null) teamRedChampionPoints += `${filƒlerEmoji}0\n`;
                     else teamRedChampionPoints += `<:${mastery.championLevel}:${emoji[mastery.championLevel]}> ${mastery.championPoints}\n`;
                 }
             }           
@@ -94,9 +94,9 @@ module.exports = class GameCommand extends Command {
                 .addField('Rank', `${teamRedLeagues}`, true)
                 .addField('Mastery', `${teamRedChampionPoints}`, true)
             message.channel.send(embed);
-        } catch(e) {
-            console.error(e);
-        }
-        
+        } catch(error) {
+            console.error(error);
+            message.reply('Error, please contact **CX#9996**');
+        }   
     }
 };

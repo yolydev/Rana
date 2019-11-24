@@ -28,8 +28,7 @@ module.exports = class EloCommand extends Command {
         });
     }
 
-    run(message, { text }) {
-        //Convert each into functions
+    async run(message, { text }) {
         if(!text == '') {
             getLeagueName = text;
         } else {
@@ -47,12 +46,47 @@ module.exports = class EloCommand extends Command {
         var ranked, tft;
         var topChamps = "";
         var topMatchList = "";
+        var statusInfo = "";
 
         if(getLeagueName == '') {
             message.reply('You have no summoner set, do **.editprofile <summonerName>** to set one!'); return;
         }
         try {
-            api.get('euw1', 'summoner.getBySummonerName', getLeagueName)
+            const summoner = await api.get('euw1', 'summoner.getBySummonerName', getLeagueName);
+            const league = await api.get('euw1', 'league.getLeagueEntriesForSummoner', summoner.id);
+
+            let leagueData = league.find(x => x.queueType == 'RANKED_SOLO_5x5');
+
+            if(leagueData === undefined) ranked = 'Unranked';
+            else ranked = `${leagueData.tier} ${leagueData.rank}\n ${leagueData.leaguePoints} LP / ${leagueData.wins}W ${leagueData.losses}L`;
+            
+            const champion = await api.get('euw1', 'championMastery.getAllChampionMasteries', summoner.id);
+
+            for(var i = 0; i <= 2; ++i) {   
+                topChamps += `<:${translate.Champions[champion[i].championId]}:${emoji[translate.Champions[champion[i].championId]]}> - ${champion[i].championPoints} pts [${champion[i].championLevel}]\n`;
+            }
+
+            const matchList = await api.get('euw1', 'match.getMatchlist', summoner.accountId);
+
+            for(var j = 0; j <= 2; ++j) {
+                topMatchList += `<:${translate.Champions[matchList.matches[j].champion]}:${emoji[translate.Champions[matchList.matches[j].champion]]}> - ${translate.Queues[matchList.matches[j].queue]}\n`;
+            }
+
+            const embed = new RichEmbed()
+                .setColor(0xED3D7D)
+                .setTitle(`op.gg: ${summoner.name}`)
+                .setURL(`https://euw.op.gg/summoner/userName=${summoner.name.replace(' ', '+')}`)
+                .setAuthor(`Summoner Profile: ${summoner.name}`)
+                .setDescription('League of Legends')
+                .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.21.1/img/profileicon/${summoner.profileIconId}.png`)
+                .addField('Accound Info', `Name: ${summoner.name}\nLevel: ${summoner.summonerLevel}\nRegion: EUW`)
+                .addField('Ranked Solo/Duo', ranked)
+                .addField('Top Champions', topChamps, true)
+                .addField('Latest Games', topMatchList, true)
+            message.channel.send(embed);
+
+
+            /*api.get('euw1', 'summoner.getBySummonerName', getLeagueName)
             .then(summonerData => {
                 console.log(`Name:${summonerData.name}\nId:${summonerData.id}\nAccount Id:${summonerData.accountId}\nPUUID:${summonerData.puuid}\nSummonerLevel:${summonerData.summonerLevel}\nProfileIconId:${summonerData.profileIconId}`);
 
@@ -65,7 +99,7 @@ module.exports = class EloCommand extends Command {
                     } else {
                         ranked = `${leagueData.tier} ${leagueData.rank}\n ${leagueData.leaguePoints} LP / ${leagueData.wins}W ${leagueData.losses}L`;
                         console.log(`\nSummoners Rift:\n\nTier:${leagueData.tier}\nRank:${leagueData.rank}\nLP:${leagueData.leaguePoints}\nWins:${leagueData.wins}\nLosses:${leagueData.losses}\n`);
-                    }
+                    } 
                         api.get('euw1', 'championMastery.getAllChampionMasteries', summonerData.id)
                         .then(championData => {
                             for(var i = 0; i <= 2; ++i) {   
@@ -87,17 +121,17 @@ module.exports = class EloCommand extends Command {
                                     .setDescription('League of Legends')
                                     .setThumbnail(`http://ddragon.leagueoflegends.com/cdn/9.21.1/img/profileicon/${summonerData.profileIconId}.png`)
                                     .addField('Accound Info', `Name: ${summonerData.name}\nLevel: ${summonerData.summonerLevel}\nRegion: EUW`)
-                                    .addField('Ranked Solo/Duo', ranked, true)
-                                    .addField('TFT', tft, true)
+                                    .addField('Ranked Solo/Duo', ranked)
                                     .addField('Top Champions', topChamps, true)
                                     .addField('Latest Games', topMatchList, true)
                                 message.channel.send(embed);
                             });
                         });
                 });
-            });
+            });*/
         } catch(error) {
-            message.reply(error);
+            console.error(error);
+            message.reply('Error, please contact **CX#9996**');
         }
     }
 };
